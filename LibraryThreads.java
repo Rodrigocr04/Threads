@@ -3,63 +3,73 @@ import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
 
-public class LibraryThreads {
-    private List<Book> books;
-    private List<Patron> patrons;
-    private HashMap<Patron, Book> checkedOutBooks; // mapa de libros prestados a los patron
+public class LibraryThreads { // sistema de biblioteca
+    private final List<BookThreads> books; // lista de todos los libros
+    private final List<PatronThreads> patrons; // lista de usuarios registrados
+    private final HashMap<PatronThreads, BookThreads> checkedOutBooks; // relacion de prestamos
 
-    public LibraryThreads() { // constructor de la libreria
+    public LibraryThreads() { // inicializar una nueva biblioteca
         books = new ArrayList<>();
         patrons = new ArrayList<>();
         checkedOutBooks = new HashMap<>();
     }
 
-    // synchronized para que solo un thread pueda acceder a la funcion a la vez y evitar concurrencia
-    
-    public synchronized void addBook(Book book) { // agregar a la lista de libros
+    public synchronized void addBook(BookThreads book) { // añadir un libro
         books.add(book);
     }
     
-    public synchronized void removeBook(Book book) { // eliminar de la lista de libros
+    public synchronized void removeBook(BookThreads book) { // eliminar un libro
         books.remove(book);
     }
     
-    public synchronized void addPatron(Patron patron) { // agregar a la lista de patron
+    public synchronized void addPatron(PatronThreads patron) { // registrar un nuevo usuario
         patrons.add(patron);
     }
     
-    public synchronized boolean checkOutBook(Patron patron, Book book, int daysToDue) {
-        if (books.contains(book) && !book.isCheckedOut()) { // el libro esta en la biblioteca y no esta prestado
-            book.checkOut(daysToDue); // se registra el libro como prestado
-            checkedOutBooks.put(patron, book); // se registra en el hashmap
+    public synchronized boolean checkOutBook(PatronThreads patron, BookThreads book, int daysToDue) {
+        if (books.contains(book) && !book.isCheckedOut()) {
+            book.checkOut(daysToDue);
+            checkedOutBooks.put(patron, book); // registrar el prestamo
             return true;
         }
         return false;
     }
     
-    public synchronized boolean returnBook(Patron patron) {
-        Book book = checkedOutBooks.get(patron); // ve en el hashmap si el patron tiene un libro prestado
-        if (book != null) { // si el patron tiene un libro prestado
-            book.returnBook(); // se registra el libro como devuelto
-            checkedOutBooks.remove(patron); // se elimina del hashmap
+    public synchronized boolean returnBook(PatronThreads patron, BookThreads book) {
+        // proceso de devolucion de libro
+        BookThreads checkedOutBook = checkedOutBooks.get(patron);
+        if (checkedOutBook != null && checkedOutBook.equals(book)) {
+            book.returnBook();
+            checkedOutBooks.remove(patron); // eliminar registro de prestamo
             return true;
         }
         return false;
     }
     
-    public synchronized double calculateFine(Patron patron) {
-        Book book = checkedOutBooks.get(patron); // ve en el hashmap si el patron tiene un libro prestado
-        if (book != null && book.isCheckedOut()) { // si el patron tiene un libro prestado
-            LocalDate today = LocalDate.now(); // fecha de hoy con LocalDate
-            long daysOverdue = ChronoUnit.DAYS.between(book.getDueDate(), today); // calcula los dias de atraso
-
-            if (daysOverdue > 0) {
-                return daysOverdue * 0.50; // $0.50 por cada dia de atraso
-            }
+    public synchronized double calculateFine(PatronThreads patron) {
+        // calcula multa por retraso $0.50 por dia
+        BookThreads book = checkedOutBooks.get(patron);
+        if (book != null && book.isCheckedOut()) {
+            long díasRetraso = ChronoUnit.DAYS.between(book.getDueDate(), LocalDate.now());
+            return díasRetraso > 0 ? díasRetraso * 0.50 : 0.0;
         }
         return 0.0;
     }
-    
+
+    public synchronized List<BookThreads> getAvailableBooks() {
+        // obtener lista de libros disponibles
+        List<BookThreads> disponibles = new ArrayList<>();
+        for (BookThreads book : books) {
+            if (!book.isCheckedOut()) {
+                disponibles.add(book);
+            }
+        }
+        return disponibles;
+    }
+
+    public synchronized List<PatronThreads> listPatrons() {
+        // obtener copia de la lista de usuarios
+        return new ArrayList<>(patrons);
+    }
 }
